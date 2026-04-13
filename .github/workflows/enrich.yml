@@ -1,0 +1,70 @@
+name: Enrich Restaurant Database
+
+on:
+  # Ручной запуск из интерфейса GitHub → Actions → Run workflow
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Лимит строк (0 = все)'
+        required: false
+        default: '0'
+      skip_gplay:
+        description: 'Пропустить Google Play'
+        type: boolean
+        required: false
+        default: false
+      resume:
+        description: 'Пропустить уже обработанные строки'
+        type: boolean
+        required: false
+        default: true
+
+  # Автозапуск каждую неделю (понедельник, 04:00 UTC)
+  schedule:
+    - cron: '0 4 * * 1'
+
+jobs:
+  enrich:
+    name: Run enrichment pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: claude/restaurant-database-analysis-7QEPV
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run enrichment pipeline
+        run: |
+          ARGS=""
+          LIMIT="${{ github.event.inputs.limit || '0' }}"
+          if [ "$LIMIT" != "0" ]; then ARGS="$ARGS --limit $LIMIT"; fi
+          if [ "${{ github.event.inputs.skip_gplay }}" = "true" ]; then ARGS="$ARGS --no-gplay"; fi
+          if [ "${{ github.event.inputs.resume }}" != "false" ]; then ARGS="$ARGS --resume"; fi
+          echo "Running: python pipeline.py $ARGS"
+          python pipeline.py $ARGS
+
+      - name: Generate summary report
+        run: python report.py >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit enriched data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/enriched.csv data/restaurants.db
+          git diff --staged --quiet && echo "No changes to commit" || \
+            git commit -m "Auto-enrich: $(date '+%Y-%m-%d %H:%M UTC') [skip ci]"
+
+      - name: Push results
+        run: git push origin claude/restaurant-database-analysis-7QEPV

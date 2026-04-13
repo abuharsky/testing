@@ -189,6 +189,7 @@ def main():
     parser.add_argument("--workers",  type=int, default=1,           help="Потоки (1 = последовательно)")
     parser.add_argument("--no-gplay", action="store_true",           help="Пропустить Google Play")
     parser.add_argument("--only-with-site", action="store_true",     help="Только строки с сайтом")
+    parser.add_argument("--resume",   action="store_true",           help="Пропустить уже обработанные строки")
     args = parser.parse_args()
 
     os.makedirs("data", exist_ok=True)
@@ -202,13 +203,27 @@ def main():
     rows = load_input(args.input)
     print(f"Загружено строк: {len(rows)}")
 
+    # Режим resume: пропускаем строки которые уже есть в enriched.csv
+    already_done: set[str] = set()
+    if args.resume and os.path.exists(args.output):
+        try:
+            done_rows = load_input(args.output)
+            already_done = {r["ID"] for r in done_rows if r.get("enriched_at") and r.get("ID")}
+            print(f"Уже обработано (resume):   {len(already_done)}")
+        except Exception:
+            pass
+
     if args.only_with_site:
         rows = [r for r in rows if r.get("Сайт")]
         print(f"После фильтра (есть сайт): {len(rows)}")
 
+    if already_done:
+        rows = [r for r in rows if r.get("ID") not in already_done]
+        print(f"Осталось обработать:       {len(rows)}")
+
     if args.limit:
         rows = rows[:args.limit]
-        print(f"Ограничено до: {len(rows)}")
+        print(f"Ограничено до:             {len(rows)}")
 
     enriched: list[dict] = []
 
@@ -228,6 +243,14 @@ def main():
         # Последовательный режим (по умолчанию)
         for row in tqdm(rows, desc="Обогащение"):
             enriched.append(enrich_row(row, args))
+
+    # В режиме resume — мерджим новые строки с уже готовыми
+    if args.resume and already_done and os.path.exists(args.output):
+        existing = load_input(args.output)
+        # Убираем из existing те что перепроцессили, добавляем новые
+        new_ids  = {r.get("ID") for r in enriched}
+        merged   = [r for r in existing if r.get("ID") not in new_ids] + enriched
+        enriched = merged
 
     # Сортировка по приоритету сегмента
     enriched.sort(key=lambda r: (r.get("lead_priority", 9), -int(r.get("lead_score", 0) or 0)))
