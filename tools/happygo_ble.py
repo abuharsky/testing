@@ -238,18 +238,42 @@ def pcm_get_device_work_param() -> bytes:
 
 
 def pcm_set_device_work_param(
+    pressure: int,
     soaking_time: int,
     standstill_time: int,
-    extraction_time: int,
-    pressure: int | None = None,
+    extraction_time: int | None = None,
 ) -> bytes:
-    """pressure=None -> короткий вариант для прошивок без регулировки давления."""
-    if pressure is None:
-        body = bytes([soaking_time & 0xFF, standstill_time & 0xFF, extraction_time & 0xFF])
-    else:
-        body = bytes([pressure & 0xFF, soaking_time & 0xFF,
-                      standstill_time & 0xFF, extraction_time & 0xFF])
+    """Команда 0x18.
+
+    Порядок байт: [давление, замачивание, выстаивание, экстракция].
+    extraction_time=None -> короткий 3-байтовый вариант; оригинал использует его,
+    когда устройство не прислало параметры времени экстракции в ответе 0x17
+    (флаг PcmDevice.field_6f). Отбрасывается именно последний байт.
+    """
+    body = bytes([pressure & 0xFF, soaking_time & 0xFF, standstill_time & 0xFF])
+    if extraction_time is not None:
+        body += bytes([extraction_time & 0xFF])
     return build_frame(Pcm.SET_DEVICE_WORK_PARAM, body)
+
+
+def parse_work_param_echo(payload: bytes) -> dict[str, int]:
+    """Ответ на 0x18 (4 байта) или на 0x20 (5 байт) — форматы разные."""
+    if len(payload) >= 5:
+        return {
+            "pressure": payload[0],
+            "soaking_time": payload[1],
+            "standstill_time": payload[2],
+            "preset_temperature": payload[3],
+            "extraction_time": payload[4],
+        }
+    if len(payload) >= 4:
+        return {
+            "pressure": payload[0],
+            "soaking_time": payload[1],
+            "standstill_time": payload[2],
+            "extraction_time": payload[3],
+        }
+    raise PackFormatError("work param echo too short")
 
 
 def pcm_set_work_state(start: bool, mode: PcmMode | int = PcmMode.HOT_EXTRACTION) -> bytes:
@@ -592,6 +616,12 @@ if __name__ == "__main__":
     assert st.charge_state is ChargeState.CHARGING
 
     assert get_crc(b"123456789") == (~zlib.crc32(b"123456789")) & 0xFFFFFFFF
+
+    # 0x18: порядок [давление, замачивание, выстаивание, экстракция]
+    assert pcm_set_device_work_param(2, 30, 15, 60)[4:] == bytes([0x18, 2, 30, 15, 60])
+    assert pcm_set_device_work_param(2, 30, 15)[4:] == bytes([0x18, 2, 30, 15])
+    assert parse_work_param_echo(bytes([2, 30, 15, 60]))["extraction_time"] == 60
+    assert parse_work_param_echo(bytes([2, 30, 15, 92, 60]))["preset_temperature"] == 92
 
     print("self-check OK")
     print("state :", build_frame(Pcm.GET_DEVICE_STATE).hex(" "))
