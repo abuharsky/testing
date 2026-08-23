@@ -102,7 +102,11 @@ BLE-протокол и что из этого нужно повторить в 
 | `preSoakTime` «Pre-soak Time (S)» | сек., шаг 1 | `soakingTime.min/max` из `0x17` |
 | `standstillTime` «Standstill Time (S)» | сек., шаг 1 | `standstillTime.min/max` из `0x17` |
 | `extractionTime` «Extraction Time (S)» | сек., **шаг 10** | `extractionTime.min/max` из `0x17` |
-| `extractionPressure` «Flow Speed» | Low / Medium / High | `pressure.min/max`, при `max < min` → `0..2` |
+| `extractionPressure` «Flow Speed» | шаг 1 | `pressure.min/max`, при `max < min` → `0..2` |
+
+`Low` / `Medium` / `High` — это не три градации, а подпись под ползунком:
+приложение делит диапазон `[min..max]` на трети и показывает, в какую попало
+текущее значение. Количество делений задаёт устройство ответом `0x17`.
 
 Плюс подсказка `referenceValue` / `altitude` (рекомендуемые значения в
 зависимости от высоты над уровнем моря) — чисто информационная,

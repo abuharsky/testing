@@ -9,6 +9,8 @@
 * [`docs/happygo-ux-and-client-spec.md`](docs/happygo-ux-and-client-spec.md) —
   что приложение умеет, карта экранов, соответствие «экран → команда» и
   минимальная спецификация для своего клиента.
+* [`docs/happygo-minimal-ui.md`](docs/happygo-minimal-ui.md) — минимальный
+  интерфейс: экраны, привязка каждого элемента к байтам протокола, блокировки.
 * [`tools/happygo_ble.py`](tools/happygo_ble.py) — рабочий кодек на Python
   (сборка/разбор кадров, склейка notify-чанков, парсеры ответов, CRC для OTA).
   Запуск `python3 tools/happygo_ble.py` прогоняет self-check.
