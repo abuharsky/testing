@@ -222,7 +222,7 @@ len = 7
 | CMD | Имя в коде | Направление | Payload запроса | Payload ответа |
 |---|---|---|---|---|
 | `0x00` | `getDeviceState` | ↔ / push | — | 6 байт, см. 6.1 |
-| `0x02` | `setWorkState` | → | 2 байта: `[start, mode]` | эхо |
+| `0x02` | `setWorkState` | → | 2 байта: `[start, WorkMode]` | эхо |
 | `0x04` | `setTime` | → | 7 байт, см. 6.5 | — (ack) |
 | `0x06` | `getCups` | ↔ | 1 байт: `[clear]` | история, см. 6.6 (фрагментируется) |
 | `0x08` | `getDeviceInfo` | ↔ | — | TLV-строки, см. 6.7 (фрагментируется) |
@@ -435,7 +435,24 @@ buf[j+1 .. j+1+L3)         — строка 3 (ASCII)  -> модель изде�
 | 4 | `lowBatteryHot` |
 | 5 | `lowBattery` |
 
-**`PcmMode`**: 0 `hotExtraction`, 1 `hotWater`, 2 `onlyExtraction`.
+**`WorkMode`** — режим в команде `0x02` (`setWorkState`):
+
+| Код | Имя | Кнопка в UI |
+|---|---|---|
+| 0 | `hotWater` | Heating (нагрев воды без пролива) |
+| 1 | `hotExtraction` | Heating&Extraction |
+| 2 | `extraction` | Extraction (пролив без нагрева) |
+
+**`PcmMode`** — тот же набор режимов, но в командах таймера `0x23`/`0x24`,
+**с другой нумерацией**:
+
+| Код | Имя | Кнопка в UI |
+|---|---|---|
+| 0 | `hotExtraction` | Heating&Extraction |
+| 1 | `hotWater` | Heating |
+| 2 | `onlyExtraction` | Extraction |
+
+Это не опечатка — в приложении действительно два независимых перечисления.
 
 **`AppointMode`**: 0 `turnOn`, 1 `turnOff`.
 

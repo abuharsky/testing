@@ -96,10 +96,25 @@ class PcmWorkErrorCode(enum.IntEnum):
     LOW_BATTERY = 5
 
 
+class WorkMode(enum.IntEnum):
+    """Режим в команде 0x02 (setWorkState). Нумерация НЕ совпадает с PcmMode."""
+    HOT_WATER = 0          # кнопка "Heating"  — нагрев воды без пролива
+    HOT_EXTRACTION = 1     # кнопка "Heating&Extraction"
+    EXTRACTION = 2         # кнопка "Extraction" — пролив без нагрева
+
+
 class PcmMode(enum.IntEnum):
-    HOT_EXTRACTION = 0
-    HOT_WATER = 1
-    ONLY_EXTRACTION = 2
+    """Режим в командах таймера 0x23/0x24. Нумерация НЕ совпадает с WorkMode."""
+    HOT_EXTRACTION = 0     # кнопка "Heating&Extraction"
+    HOT_WATER = 1          # кнопка "Heating"
+    ONLY_EXTRACTION = 2    # кнопка "Extraction"
+
+
+class BeepSound(enum.IntEnum):
+    DING_DONG = 0
+    DI_DI = 1
+    BU_GU = 2
+    BI_BI = 3
 
 
 class TipMode(enum.IntEnum):
@@ -276,7 +291,8 @@ def parse_work_param_echo(payload: bytes) -> dict[str, int]:
     raise PackFormatError("work param echo too short")
 
 
-def pcm_set_work_state(start: bool, mode: PcmMode | int = PcmMode.HOT_EXTRACTION) -> bytes:
+def pcm_set_work_state(start: bool, mode: WorkMode | int = WorkMode.HOT_EXTRACTION) -> bytes:
+    """Команда 0x02. Внимание: здесь WorkMode, а не PcmMode."""
     return build_frame(Pcm.SET_WORK_STATE, bytes([1 if start else 0, int(mode) & 0xFF]))
 
 
@@ -301,11 +317,11 @@ def pcm_set_appointment(
     hour: int,
     minute: int,
     tip_mode: TipMode | int = TipMode.SILENT,
-    beep_index: int = 0,
+    beep_index: BeepSound | int = BeepSound.DING_DONG,
     enable: bool = True,
 ) -> bytes:
     body = bytes([int(mode) & 0xFF, hour & 0xFF, minute & 0xFF,
-                  int(tip_mode) & 0xFF, beep_index & 0xFF, 1 if enable else 0])
+                  int(tip_mode) & 0xFF, int(beep_index) & 0xFF, 1 if enable else 0])
     return build_frame(Pcm.SET_APPOINTMENT, body)
 
 
@@ -598,7 +614,9 @@ if __name__ == "__main__":
 
     # Кадры из §4 документации.
     assert build_frame(Pcm.GET_DEVICE_STATE) == bytes.fromhex("7f0005 84 00".replace(" ", ""))
-    assert pcm_set_work_state(True, PcmMode.HOT_WATER) == bytes.fromhex("7f00078a020101")
+    assert pcm_set_work_state(True, WorkMode.HOT_EXTRACTION) == bytes.fromhex("7f00078a020101")
+    # 0x02 использует WorkMode, 0x23/0x24 — PcmMode; нумерация разная
+    assert WorkMode.HOT_WATER == 0 and PcmMode.HOT_WATER == 1
     assert build_frame(Pcm.GET_DEVICE_INFO).hex(" ") == "7f 00 05 8c 08"
 
     # Приёмный автомат: разрезаем ответ пополам и склеиваем обратно.
