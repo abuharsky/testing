@@ -1,0 +1,13 @@
+[project]
+name = "fortunata"
+version = "0.1.0"
+description = "Фортуната (Морковск, Ozon): билеты с максимальным покрытием чисел и автопокупка на Android"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+android = ["uiautomator2>=3.2", "pillow>=9.2"]
+test = ["pytest", "pillow>=9.2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

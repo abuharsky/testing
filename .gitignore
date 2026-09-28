@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+fortunata-debug/
+*.json.tmp
+# планы с вашими билетами — личные данные
+plan*.json
